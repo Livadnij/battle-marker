@@ -106,10 +106,18 @@ def read_tag(image: np.ndarray, box: Box) -> str:
     return " ".join(words)
 
 
+SIGNATURE_BRIGHT = 170  # same cut as the tag outline search in read_tag
+
+
 def signature(image: np.ndarray, box: Box) -> np.ndarray:
-    """Small grayscale thumbnail used to notice when the text changed."""
-    gray = crop_gray(image, box)
-    return cv2.resize(gray, None, fx=0.125, fy=0.125, interpolation=cv2.INTER_AREA).astype(np.int16)
+    """Small thumbnail of the bright pixels, used to notice when the text changed.
+
+    Only text and outlines are that bright. Tag boxes are see-through, and
+    comparing plain gray made every move of the scene behind them look like
+    new text, so the same tag was read again and again.
+    """
+    bright = np.where(crop_gray(image, box) > SIGNATURE_BRIGHT, 255, 0).astype(np.uint8)
+    return cv2.resize(bright, None, fx=0.125, fy=0.125, interpolation=cv2.INTER_AREA).astype(np.int16)
 
 
 def changed(a: np.ndarray | None, b: np.ndarray, threshold: float) -> bool:

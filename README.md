@@ -20,7 +20,7 @@ uv run app.py
 
 The first screen lists every recording Steam still has, with a preview, the game, start time, length of the video still on disk, and whether it was scanned. Games other than Battlefield 6 are shown as unsupported. Double-click a recording to open it.
 
-The recording screen plays the video with sound, with a timeline that has a tick for every badge the scan found. Badges picked by a rule are orange, the rest are grey, and the list on the right shows all of them the same way. Picked badges show their Steam icon from `icons/` above the timeline. Steam's number icons have no image files and are drawn as text. The timeline shows 10 minutes at a time. The wheel zooms around the cursor, Shift+wheel or the scrollbar under it scrolls, and while playing it follows the playhead. Hovering shows a preview frame and the name of a badge under the cursor. Click a badge to jump to it, drag the timeline to seek, Space plays and pauses, and the arrow keys skip 5 seconds. Scan and Write markers are on the right. If Steam is running, Write markers waits and writes as soon as Steam closes. Start Steam afterwards to see the markers.
+The recording screen plays the video with sound, with a timeline that has a tick for every badge the scan found. Badges picked by a rule are orange, the rest are grey, and the list on the right shows all of them the same way, with the marker icon in front of each picked one. Picked badges show their Steam icon from `icons/` above the timeline. Steam's number icons have no image files and are drawn as text. The timeline shows 10 minutes at a time. The wheel zooms around the cursor, Shift+wheel or the scrollbar under it scrolls, and while playing it follows the playhead. Hovering shows a preview frame and the name of a badge under the cursor. Click a badge to jump to it, drag the timeline to seek, Space plays and pauses, and the arrow keys skip 5 seconds. Scan and Write markers are on the right. If Steam is running, Write markers waits and writes as soon as Steam closes. Start Steam afterwards to see the markers.
 
 The player reads Steam's chunk files in place through HLS playlists in `output/playlists/`, which are rebuilt each time a recording is opened. The same `master.m3u8` also opens in VLC or mpv.
 
@@ -46,11 +46,23 @@ Rules... on the recordings screen decides which badges become markers and how th
 | On | Unticked keeps the rule without using it. |
 | Name | Marker title in Steam. When several rules match texts on the same badge, their names are joined with " + ". |
 | Match text | Text searched for in the badge, ignoring case and extra spaces. `KILL` also matches `KILL X2`. |
-| Source | `banner` for the ribbon above the stack (DOUBLE KILL, PAYBACK), `tag` for the boxed text below the name (KILL, HEADSHOT, DAMAGE ASSIST), or `any`. |
+| Source | `banner` for the ribbon above the stack (DOUBLE KILL, PAYBACK), `tag` for the boxed text below the name (KILL, HEADSHOT, DAMAGE ASSIST, SUPPLY), `life` for DEATH, DOWNED and REVIVED, or `any` for banner and tag. |
 | Icon | One of Steam's icons, listed below. |
 | Priority | Higher wins. When several rules match one badge, the highest priority picks the icon. Steam also uses it to decide which icons to show in crowded parts of the timeline. |
 
 Below the rules is every badge text your scans have read, how often, and which rule picks it. Double-click a text, or select it and press Add as rule, to start a rule from it.
+
+## Deaths, downs and revives
+
+A scan also watches for the downed screen, found by its round heartbeat button, and the deploy screen, found by its row of class icons. A revive keeps the same life going, so the rules Death, Downed and Revived mark these moments.
+
+| Text | When |
+|---|---|
+| DEATH | You went down and the deploy screen followed. The marker sits where you went down. Without a down first, it sits where the deploy screen showed. |
+| DOWNED | You went down and got revived. |
+| REVIVED | The moment that down ended. |
+
+A down counts as a revive when the deploy screen does not show within 60 seconds after it, long enough for a detour through the loadout screen. The deploy screen at the start of a match is no death, it only counts after a badge or a down showed you were alive. Badges are not looked for while the deploy screen shows. Older scans have no deaths until they are scanned again.
 
 ## Scanning speed
 

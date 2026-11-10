@@ -29,7 +29,7 @@ def replace_rules(rules: list[Rule]) -> None:
 
 @dataclass(frozen=True)
 class SeenLabel:
-    kind: str  # banner or tag
+    kind: str  # banner, tag or life
     label: str
     count: int  # badges it was read on, across all scans
 

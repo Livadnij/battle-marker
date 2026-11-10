@@ -61,13 +61,21 @@ class AppearanceTracker:
         confirm_reads: int,
         banner_reader: Reader = ocr.read_banner,
         tag_reader: Reader = ocr.read_tag,
+        tag_rows: tuple[int, ...] = (),
     ) -> None:
+        """tag_rows are the rows where the tag's right end matches, the first one for tag_box.
+
+        Badges without an icon draw their tag higher, and the box moves to the
+        row nearest the detector's match. Empty keeps the box where it is.
+        """
         self.confirm_samples = confirm_samples
         self.gap_tolerance = gap_tolerance
         self.change_threshold = change_threshold
         self.confirm_reads = confirm_reads
         self.banner = _TextSlot("banner", banner_box, banner_reader)
         self.tag = _TextSlot("tag", tag_box, tag_reader)
+        self.tag_box = tag_box
+        self.tag_rows = tag_rows
         self.finished: list[Appearance] = []
         self._current: Appearance | None = None
         self._run_start: float | None = None
@@ -101,6 +109,7 @@ class AppearanceTracker:
         if cues.banner_readable or cues.tag_readable:
             self._read(self.banner, time, image)
         if cues.tag_readable:
+            self.tag.box = self._tag_box_for(cues)
             self._read(self.tag, time, image)
         if cues.headshot:
             self._add(time, "tag", "HEADSHOT")
@@ -108,6 +117,14 @@ class AppearanceTracker:
     def settled_before(self, time: float) -> bool:
         """True when no badge that started before this time is still being followed."""
         return self._current is None and (self._run_start is None or self._run_start >= time)
+
+    def _tag_box_for(self, cues: Cues) -> Box:
+        if not self.tag_rows or cues.tag_top is None:
+            return self.tag_box
+        row = min(self.tag_rows, key=lambda r: abs(r - cues.tag_top))
+        shift = row - self.tag_rows[0]
+        left, top, right, bottom = self.tag_box
+        return left, top + shift, right, bottom + shift
 
     def finish(self) -> list[Appearance]:
         if self._current is not None:

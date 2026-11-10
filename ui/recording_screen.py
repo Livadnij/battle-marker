@@ -24,7 +24,8 @@ from ui.player.icons import icon_pixmap
 from ui.player.timeline import TimelineBadge, TimelineBar
 from ui.workers import ScanWorker, start_in_thread
 
-BADGE_COLUMNS = ["Time", "Badge", "Icon", "In Steam"]
+BADGE_COLUMNS = ["Time", "Badge"]
+BADGE_ICON_SIZE = 18
 SKIP_SECONDS = 5
 JUMP_LEAD_SECONDS = 2  # a badge click starts playback this long before the badge
 SEEK_DEBOUNCE_MS = 120  # dragging the timeline seeks at most this often
@@ -344,12 +345,7 @@ class RecordingScreen(QWidget):
         italic.setItalic(True)
         self.badge_table.setRowCount(len(self.badges))
         for row, badge in enumerate(self.badges):
-            cells = [
-                item(fmt(badge.time)),
-                item(badge.title),
-                self._icon_item(badge),
-                item("Yes" if badge.in_timeline else ""),
-            ]
+            cells = [item(fmt(badge.time)), self._title_item(badge)]
             for col, cell in enumerate(cells):
                 if not badge.selected:
                     cell.setForeground(muted)
@@ -372,12 +368,16 @@ class RecordingScreen(QWidget):
             )
         self._update_controls()
 
-    def _icon_item(self, badge: Badge):
-        cell = item("")
+    def _title_item(self, badge: Badge):
+        """Badge text with the marker icon in front. Badges no rule picks get an empty space, so texts line up."""
+        cell = item(badge.title)
         if badge.rule is not None:
             color = self.palette().color(QPalette.ColorRole.Text)
-            cell.setData(Qt.ItemDataRole.DecorationRole, icon_pixmap(badge.rule.icon, 18, color))
-            cell.setToolTip(badge.rule.icon)
+            icon = icon_pixmap(badge.rule.icon, BADGE_ICON_SIZE, color)
+        else:
+            icon = QPixmap(BADGE_ICON_SIZE, BADGE_ICON_SIZE)
+            icon.fill(Qt.GlobalColor.transparent)
+        cell.setData(Qt.ItemDataRole.DecorationRole, icon)
         return cell
 
     def _on_view_changed(self, view_start: float, view_end: float) -> None:

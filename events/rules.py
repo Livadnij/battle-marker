@@ -8,7 +8,8 @@ from dataclasses import dataclass
 
 from markers.icons import is_valid_icon
 
-SOURCES = ("banner", "tag", "any")
+# "life" is a death, a down or a revive, see events/life.py. "any" means banner or tag.
+SOURCES = ("banner", "tag", "life", "any")
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,8 @@ class Rule:
 
     def matches(self, kind: str, label: str) -> bool:
         if not self.enabled:
+            return False
+        if self.source == "any" and kind not in ("banner", "tag"):
             return False
         if self.source != "any" and self.source != kind:
             return False

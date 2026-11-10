@@ -22,6 +22,11 @@ class Cues:
     banner_readable: bool  # banner fully drawn, safe to OCR
     tag_readable: bool  # tag box fully drawn, safe to OCR
     scores: dict[str, float]
+    tag_top: int | None = None  # ROI row where the tag box's right end matched best
+
+
+NO_BADGE = Cues(present=False, banner=False, headshot=False, banner_readable=False,
+                tag_readable=False, scores={})
 
 
 class BadgeDetector:
@@ -47,16 +52,23 @@ class BadgeDetector:
         self.headshot_threshold = headshot_threshold
         self.readable_threshold = readable_threshold
 
-    def _score(self, gray: np.ndarray, name: str) -> float:
+    def _match(self, gray: np.ndarray, name: str) -> tuple[float, int]:
+        """Best score in the template's region and the ROI row it matched at."""
         left, top, right, bottom = self.regions[name]
         area = gray[top:bottom, left:right]
         result = cv2.matchTemplate(area, self.templates[name], cv2.TM_CCOEFF_NORMED)
         # A flat area gives NaN, which means no match.
-        return float(np.nan_to_num(result.max(), nan=0.0))
+        result = np.nan_to_num(result, nan=0.0)
+        row, _ = np.unravel_index(int(result.argmax()), result.shape)
+        return float(result.max()), top + int(row)
 
     def analyse(self, image: np.ndarray) -> Cues:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        scores = {name: self._score(gray, name) for name in self.regions}
+        # Only the badge part of the ROI is converted, the rest is for the downed and deploy screens.
+        right = max(r[2] for r in self.regions.values())
+        bottom = max(r[3] for r in self.regions.values())
+        gray = cv2.cvtColor(image[:bottom, :right], cv2.COLOR_BGR2GRAY)
+        matches = {name: self._match(gray, name) for name in self.regions}
+        scores = {name: score for name, (score, _) in matches.items()}
         present = max(scores["tag_edge"], scores["score_zero"]) >= self.presence_threshold
         return Cues(
             present=present,
@@ -65,4 +77,5 @@ class BadgeDetector:
             banner_readable=present and scores["banner_bars"] >= self.readable_threshold,
             tag_readable=present and scores["tag_edge"] >= self.readable_threshold,
             scores=scores,
+            tag_top=matches["tag_edge"][1],
         )

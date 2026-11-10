@@ -56,6 +56,13 @@ MIGRATIONS = [
         name   TEXT NOT NULL
     );
     """,
+    # 2, deaths, downs and revives from the downed and deploy screens
+    """
+    INSERT INTO rules (name, pattern, source, icon, priority, enabled) VALUES
+        ('Death',   'DEATH',   'life', 'steam_death',   70, 1),
+        ('Downed',  'DOWNED',  'life', 'steam_caution', 15, 1),
+        ('Revived', 'REVIVED', 'life', 'steam_heart',   15, 1);
+    """,
 ]
 
 _ready = False

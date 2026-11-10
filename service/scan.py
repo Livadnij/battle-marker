@@ -9,7 +9,11 @@ both drive the same function.
 A badge can be on screen where two parts meet. Each part therefore starts
 LEAD_CHUNKS early and keeps going past its end until the badge it is
 following has closed. It keeps only the badges that started inside its own
-stretch, so every badge is found once and whole, as in a single pass.
+stretch, so every badge is found once and whole, as in a single pass. Downs
+work the same way, a part keeps going until it knows how its last down ended.
+
+Every frame is also checked for the downed and the deploy screen, see
+events/life.py. Badges are not looked for while the deploy screen shows.
 """
 
 import math
@@ -21,7 +25,9 @@ from dataclasses import dataclass, field
 import config
 from decode.reader import chunk_range, read_frames
 from detect import ocr
-from detect.detector import BadgeDetector
+from detect.detector import NO_BADGE, BadgeDetector
+from detect.life import LifeDetector
+from events.life import LifeTracker
 from events.tracker import Appearance, AppearanceTracker
 from recording.session import Session
 from service.errors import NoFramesError, ResolutionError
@@ -31,8 +37,8 @@ from storage.settings import get_settings
 # Chunks decoded before a part's own stretch, so a badge already on screen
 # there is seen from its start and left to the part before.
 LEAD_CHUNKS = 2
-# Furthest a part reads past its own stretch to finish a badge it is following.
-TAIL_CHUNKS = 20
+# Furthest a part reads past its own stretch to finish a badge or decide a down.
+TAIL_CHUNKS = 40
 # Shorter recordings get fewer parts, starting ffmpeg costs more than it saves.
 MIN_PART_CHUNKS = 20
 # How long the parts get to stop after a crash or Ctrl+C before giving up on them.
@@ -146,6 +152,23 @@ def _new_tracker(watch: Stopwatch) -> AppearanceTracker:
         confirm_reads=config.TEXT_CONFIRM_READS,
         banner_reader=watch.wrap("ocr", ocr.read_banner),
         tag_reader=watch.wrap("ocr", ocr.read_tag),
+        tag_rows=config.TAG_ROW_TOPS,
+    )
+
+
+def _new_life_tracker(alive_known: bool) -> LifeTracker:
+    return LifeTracker(
+        confirm_samples=config.LIFE_CONFIRM_SAMPLES,
+        gap_seconds=config.DOWNED_GAP_SECONDS,
+        death_wait_seconds=config.DEATH_WAIT_SECONDS,
+        alive_known=alive_known,
+    )
+
+
+def _new_life_detector() -> LifeDetector:
+    return LifeDetector(
+        config.TEMPLATES_DIR, config.DOWNED_RING, config.DOWNED_THRESHOLD,
+        config.DEPLOY_REGION, config.DEPLOY_THRESHOLD,
     )
 
 
@@ -163,6 +186,9 @@ def _scan_part(session: Session, part: _Part, gpu: bool, stop: threading.Event) 
         watch = part.watch
         tracker = _new_tracker(watch)
         analyse = watch.wrap("templates", _new_detector().analyse)
+        # A part that starts mid-recording assumes you were alive before it.
+        life = _new_life_tracker(alive_known=part.own_start > -math.inf)
+        analyse_life = watch.wrap("life", _new_life_detector().analyse)
         track = session.track
         stream = frames_for(session, track.chunk_start(part.chunks[0]),
                             track.chunk_start(part.chunks[-1]) + track.segment_seconds / 2, gpu)
@@ -173,9 +199,13 @@ def _scan_part(session: Session, part: _Part, gpu: bool, stop: threading.Event) 
                 watch.add("waiting for frames", clock.perf_counter() - waited)
                 if frame is None:
                     break
-                if frame.time >= part.own_end and tracker.settled_before(part.own_end):
-                    break  # the tail only finishes badges that started inside
-                tracker.update(frame.time, analyse(frame.image), frame.image)
+                if (frame.time >= part.own_end and tracker.settled_before(part.own_end)
+                        and life.settled_before(part.own_end)):
+                    break  # the tail only finishes what started inside
+                life_cues = analyse_life(frame.image)
+                cues = NO_BADGE if life_cues.deploy else analyse(frame.image)
+                tracker.update(frame.time, cues, frame.image)
+                life.update(frame.time, life_cues, cues.present)
                 if part.own_start <= frame.time < part.own_end:
                     part.frames += 1
                     if part.first is None:
@@ -185,6 +215,7 @@ def _scan_part(session: Session, part: _Part, gpu: bool, stop: threading.Event) 
         finally:
             stream.close()  # stops ffmpeg when the loop ended early
         part.appearances = [a for a in tracker.finish() if part.own_start <= a.start < part.own_end]
+        part.appearances += [e.appearance for e in life.finish() if part.own_start <= e.episode < part.own_end]
     except BaseException as e:
         part.error = e
         stop.set()

@@ -10,7 +10,7 @@ import config
 from events.rules import rules_from_json
 from events.tracker import Appearance, Sighting
 from storage.app_names import put_app_name
-from storage.rules import replace_rules
+from storage.rules import list_rules, replace_rules
 from storage.scans import save_appearances
 
 
@@ -23,7 +23,9 @@ def import_legacy_files() -> None:
 def _import_rules() -> None:
     path = config.LEGACY_MARKERS_FILE
     if path.exists():
-        replace_rules(rules_from_json(json.loads(path.read_text(encoding="utf-8"))))
+        # The death, down and revive rules come from a migration, markers.json never had them.
+        kept = [r for r in list_rules() if r.source == "life"]
+        replace_rules(rules_from_json(json.loads(path.read_text(encoding="utf-8"))) + kept)
 
 
 def _import_scan_logs() -> None:

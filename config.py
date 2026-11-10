@@ -66,7 +66,9 @@ SAMPLE_FPS = 5
 # Sub-regions inside the ROI, as (left, top, right, bottom) in ROI pixels.
 # Each template is searched inside its region, so small shifts are tolerated.
 REGIONS = {
-    "tag_edge": (974, 394, 1022, 486),      # right end of the KILL / HEADSHOT box
+    # Right end of a tag box. Searched over the whole stack height, because
+    # badges without a skull or revive icon draw their tag row higher.
+    "tag_edge": (974, 260, 1022, 486),
     "banner_bars": (954, 158, 1022, 240),   # striped bars right of the ribbon icon
     "score_zero": (1100, 276, 1200, 352),   # last "0" of the score, has a dark halo
     "headshot_tag": (796, 398, 1016, 482),  # the whole HEADSHOT box
@@ -74,6 +76,11 @@ REGIONS = {
 # Text areas handed to OCR.
 BANNER_TEXT_BOX = (0, 165, 840, 235)  # white ribbon box, grows leftward
 TAG_TEXT_BOX = (250, 405, 1010, 475)  # KILL, HEADSHOT, KILL x2, OFFENSIVE
+# Rows where tag_edge matches, measured. 404 for badges with an icon, where
+# the tag sits in TAG_TEXT_BOX, 332 with a player name and no icon, 274 with
+# neither. The box moves to the row nearest the match, so a match that
+# wobbles by a pixel does not count as new text.
+TAG_ROW_TOPS = (404, 332, 274)
 
 # Template match thresholds (normalised cross-correlation, -1..1).
 # Measured on real frames. Badge frames score 0.9 to 1.0, frames without a
@@ -96,3 +103,27 @@ TEXT_CHANGE_THRESHOLD = 12.0
 # The same text has to be read this many times in one appearance to count.
 # A single odd read during an animation is dropped.
 TEXT_CONFIRM_READS = 2
+
+# ---- downed and deploy screens ---------------------------------------------
+
+# Heartbeat button of the downed screen, as (centre x, centre y, radius) in
+# ROI pixels. It stays a ring while a teammate revives you, dashed then.
+DOWNED_RING = (1420, 598, 78)
+# Share of the ring that has to be drawn white against its outside. Downed
+# frames score 0.5 to 1.0, a 30 minute recording had nothing else above 0.3.
+DOWNED_THRESHOLD = 0.35
+# Class icon row of the deploy screen, matched on its edges so it does not
+# matter which class box is white. Template from deploy_icons.png, searched
+# in this area of the ROI.
+DEPLOY_REGION = (1146, 646, 1434, 780)
+# Deploy screens score 0.98 to 1.0, everything else under 0.3.
+DEPLOY_THRESHOLD = 0.6
+# Consecutive samples a downed or deploy screen needs before it counts.
+LIFE_CONFIRM_SAMPLES = 2
+# The downed button may vanish this long, behind the scoreboard or a flash,
+# without ending the down.
+DOWNED_GAP_SECONDS = 4
+# A down is a death when the deploy screen shows within this long after it
+# ends, and a revive otherwise. Long enough for a detour through the loadout
+# screen, which hides the class row.
+DEATH_WAIT_SECONDS = 60
