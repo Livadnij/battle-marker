@@ -1,0 +1,60 @@
+{
+  "markers": [
+    {
+      "name": "MARAUDER",
+      "match": "MARAUDER",
+      "source": "banner",
+      "icon": "steam_crown",
+      "priority": 60,
+      "enabled": true
+    },
+    {
+      "name": "QUAD KILL",
+      "match": "QUAD KILL",
+      "source": "banner",
+      "icon": "steam_4",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "name": "TRIPLE KILL",
+      "match": "TRIPLE KILL",
+      "source": "banner",
+      "icon": "steam_3",
+      "priority": 40,
+      "enabled": true
+    },
+    {
+      "name": "DOUBLE KILL",
+      "match": "DOUBLE KILL",
+      "source": "banner",
+      "icon": "steam_2",
+      "priority": 30,
+      "enabled": true
+    },
+    {
+      "name": "HEADSHOT",
+      "match": "HEADSHOT",
+      "source": "tag",
+      "icon": "steam_attack",
+      "priority": 20,
+      "enabled": true
+    },
+    {
+      "name": "KILL",
+      "match": "KILL",
+      "source": "tag",
+      "icon": "steam_combat",
+      "priority": 10,
+      "enabled": true
+    },
+    {
+      "name": "DAMAGE ASSIST",
+      "match": "DAMAGE ASSIST",
+      "source": "tag",
+      "icon": "steam_pair",
+      "priority": 5,
+      "enabled": true
+    }
+  ]
+}

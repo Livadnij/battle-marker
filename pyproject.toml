@@ -1,0 +1,11 @@
+[project]
+name = "battle-marker"
+version = "0.1.0"
+description = "Finds Battlefield highlight badges in Steam background recordings and adds Steam timeline markers."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0",
+    "opencv-python-headless>=4.10",
+    "pytesseract>=0.3.13",
+]
