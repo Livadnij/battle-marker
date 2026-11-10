@@ -12,6 +12,7 @@ wheels/
 # Scan logs, frame dumps and timeline backups
 output/
 backups/
+icons/
 
 # Local database with settings, rules and scan results
 battle-marker.db
