@@ -1,14 +1,53 @@
-"""Project-wide settings. Paths and thresholds live here, nothing else does."""
+"""Project constants. Detection tuning and file locations live here.
+
+Settings a user changes, like the Steam folder or the ffmpeg path, are kept
+in the database and edited in the Settings dialog. The DEFAULT_ values below
+are what they start as.
+"""
 
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent
 
-# Steam writes video/, timelines/ and clips/ under this folder.
-RECORDINGS_ROOT = Path(r"E:\Steam\gamerecordings")
+# ---- database and files ----------------------------------------------------
 
+DB_FILE = PROJECT_DIR / "battle-marker.db"
+TEMPLATES_DIR = PROJECT_DIR / "templates"
+OUTPUT_DIR = PROJECT_DIR / "output"
+BACKUP_DIR = PROJECT_DIR / "backups"
+# Recording previews shown in the window.
+THUMBNAILS_DIR = OUTPUT_DIR / "thumbnails"
+THUMBNAIL_WIDTH = 240
+
+# Files from before the database. They are imported once, the first time the
+# database is created, and not read again after that.
+LEGACY_MARKERS_FILE = PROJECT_DIR / "markers.json"
+LEGACY_APP_NAMES_FILE = OUTPUT_DIR / "app_names.json"
+LEGACY_SCAN_LOGS_DIR = OUTPUT_DIR
+
+# ---- defaults for the user settings ----------------------------------------
+
+# Steam writes video/, timelines/ and clips/ under this folder.
+DEFAULT_RECORDINGS_ROOT = Path(r"E:\Steam\gamerecordings")
 # ffmpeg executable. Needs a build with NVDEC (hevc_cuvid) for GPU decoding.
-FFMPEG = "ffmpeg"
+DEFAULT_FFMPEG = "ffmpeg"
+# Tesseract executable. Default install path of the UB Mannheim Windows build.
+DEFAULT_TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+DEFAULT_GPU_DECODING = True
+# A recording is scanned as this many parts at once, each with its own ffmpeg.
+DEFAULT_SCAN_PARTS = 3
+# A new marker is skipped when an existing timeline entry is this close.
+DEFAULT_DEDUP_SECONDS = 3.0
+# Marker is placed this many seconds before the badge appeared.
+DEFAULT_LEAD_SECONDS = 0.0
+
+# ---- games -----------------------------------------------------------------
+
+# Games whose badges the templates and OCR were built for. Other recordings
+# are listed but can't be scanned. The name here is shown as is.
+SUPPORTED_APPS = {"2807960": "Battlefield 6"}
+
+# ---- detection, tied to the templates ---------------------------------------
 
 # Badge region in a 3840x2160 frame, as (left, top, right, bottom).
 # The badge stack is right-aligned near x 1500 and grows leftward,
@@ -41,9 +80,6 @@ HEADSHOT_THRESHOLD = 0.80
 # frames score lower and give garbage OCR.
 READABLE_THRESHOLD = 0.90
 
-# Tesseract executable. Default install path of the UB Mannheim Windows build.
-TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
 # A badge counts as present after this many consecutive positive samples.
 CONFIRM_SAMPLES = 2
 # Samples a badge may drop out for without ending the appearance.
@@ -55,17 +91,3 @@ TEXT_CHANGE_THRESHOLD = 12.0
 # The same text has to be read this many times in one appearance to count.
 # A single odd read during an animation is dropped.
 TEXT_CONFIRM_READS = 2
-
-# Qualifying sightings closer than this merge into one highlight marker.
-HIGHLIGHT_MERGE_SECONDS = 6.0
-# A new marker is skipped when an existing timeline entry is this close.
-MARKER_DEDUP_SECONDS = 3.0
-# Marker is placed this many seconds before the badge appeared.
-MARKER_LEAD_SECONDS = 0.0
-
-# Which badges become markers and which icon each one gets.
-MARKERS_FILE = PROJECT_DIR / "markers.json"
-
-TEMPLATES_DIR = PROJECT_DIR / "templates"
-OUTPUT_DIR = PROJECT_DIR / "output"
-BACKUP_DIR = PROJECT_DIR / "backups"

@@ -33,6 +33,8 @@ def steam_running() -> bool:
     out = subprocess.run(
         ["tasklist", "/FI", "IMAGENAME eq steam.exe", "/NH"],
         capture_output=True, text=True, check=False,
+        # Without this a console window flashes when called from the UI.
+        creationflags=subprocess.CREATE_NO_WINDOW,
     ).stdout
     return "steam.exe" in out.lower()
 
@@ -42,7 +44,11 @@ def plan_markers(
     candidates: list[PlannedMarker],
     dedup_seconds: float,
 ) -> tuple[list[PlannedMarker], list[PlannedMarker]]:
-    """Splits candidates into (new, skipped because a marker is already close)."""
+    """Splits candidates into (new, skipped because a timeline entry is already close).
+
+    Candidates are only checked against entries already in the timeline, so
+    two separate badges a second apart both become markers.
+    """
     existing = timeline.marker_times()
     end = timeline.end_seconds
     new, skipped = [], []
@@ -53,7 +59,6 @@ def plan_markers(
             skipped.append(marker)
         else:
             new.append(marker)
-            existing.append(marker.timeline_seconds)
     return new, skipped
 
 

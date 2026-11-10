@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+import child_processes
 from recording.session import Session
 
 # Decoded frames buffered ahead of the caller. One ROI frame is about 2 MB.
@@ -139,7 +140,9 @@ def _read_run(
     cmd = build_command(ffmpeg, session.track.codec, roi, source_size, fps, gpu)
 
     with tempfile.TemporaryFile() as errors:
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors)
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors,
+                                creationflags=child_processes.NO_WINDOW)
+        child_processes.track(proc)
         feeder = threading.Thread(target=_feed, args=(session, chunks, proc.stdin), daemon=True)
         feeder.start()
         # The pump keeps ffmpeg's output drained while the caller is busy
@@ -164,6 +167,7 @@ def _read_run(
             pump.join(timeout=5)
             proc.stdout.close()
             proc.wait()
+            child_processes.untrack(proc)
             feeder.join(timeout=5)
         if proc.returncode not in (0, None) and index == 0:
             errors.seek(0)

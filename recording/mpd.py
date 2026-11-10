@@ -37,13 +37,25 @@ def parse_iso_duration(value: str) -> float:
 
 
 def read_video_track(mpd_path: Path) -> VideoTrack:
+    track = _read_track(mpd_path, "video")
+    if track is None:
+        raise ValueError(f"No video track in {mpd_path}")
+    return track
+
+
+def read_audio_track(mpd_path: Path) -> VideoTrack | None:
+    """Same fields as the video track, with width and height 0. None when there is no audio."""
+    return _read_track(mpd_path, "audio")
+
+
+def _read_track(mpd_path: Path, content_type: str) -> VideoTrack | None:
     root = ET.parse(mpd_path).getroot()
     period = root.find("m:Period", NS)
     if period is None:
         raise ValueError(f"No Period in {mpd_path}")
 
     for adaptation in period.findall("m:AdaptationSet", NS):
-        if adaptation.get("contentType") != "video":
+        if adaptation.get("contentType") != content_type:
             continue
         rep = adaptation.find("m:Representation", NS)
         template = rep.find("m:SegmentTemplate", NS)
@@ -51,8 +63,8 @@ def read_video_track(mpd_path: Path) -> VideoTrack:
         rep_id = rep.get("id")
         return VideoTrack(
             representation_id=rep_id,
-            width=int(rep.get("width")),
-            height=int(rep.get("height")),
+            width=int(rep.get("width", 0)),
+            height=int(rep.get("height", 0)),
             codec=rep.get("codecs", ""),
             init_name=template.get("initialization").replace("$RepresentationID$", rep_id),
             segment_seconds=int(template.get("duration")) / timescale,
@@ -60,4 +72,4 @@ def read_video_track(mpd_path: Path) -> VideoTrack:
             period_start=parse_iso_duration(period.get("start", "PT0S")),
             duration=parse_iso_duration(root.get("mediaPresentationDuration", "PT0S")),
         )
-    raise ValueError(f"No video track in {mpd_path}")
+    return None

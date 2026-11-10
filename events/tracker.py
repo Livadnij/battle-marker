@@ -105,6 +105,10 @@ class AppearanceTracker:
         if cues.headshot:
             self._add(time, "tag", "HEADSHOT")
 
+    def settled_before(self, time: float) -> bool:
+        """True when no badge that started before this time is still being followed."""
+        return self._current is None and (self._run_start is None or self._run_start >= time)
+
     def finish(self) -> list[Appearance]:
         if self._current is not None:
             self._close()

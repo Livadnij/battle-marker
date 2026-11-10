@@ -7,5 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.0",
     "opencv-python-headless>=4.10",
+    "pyside6>=6.8",
     "pytesseract>=0.3.13",
 ]

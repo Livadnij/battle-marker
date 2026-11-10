@@ -12,6 +12,18 @@ uv sync
 
 ffmpeg needs NVDEC support for GPU decoding. `ffmpeg -hide_banner -decoders | findstr cuvid` should list `hevc_cuvid`. Paths and thresholds live in `config.py`.
 
+## Window
+
+```
+uv run app.py
+```
+
+The first screen lists every recording Steam still has, with a preview, the game, start time, length of the video still on disk, and whether it was scanned. Games other than Battlefield 6 are shown as unsupported. Double-click a recording to open it.
+
+The recording screen plays the video with sound, with a timeline that has a tick for every badge the scan found. Badges picked by a rule are orange, the rest are grey, and the list on the right shows all of them the same way. Picked badges show their Steam icon from `icons/` above the timeline. Steam's number icons have no image files and are drawn as text. The timeline shows 10 minutes at a time. The wheel zooms around the cursor, Shift+wheel or the scrollbar under it scrolls, and while playing it follows the playhead. Hovering shows a preview frame and the name of a badge under the cursor. Click a badge to jump to it, drag the timeline to seek, Space plays and pauses, and the arrow keys skip 5 seconds. Scan and Write markers are on the right. If Steam is running, Write markers waits and writes as soon as Steam closes. Start Steam afterwards to see the markers.
+
+The player reads Steam's chunk files in place through HLS playlists in `output/playlists/`, which are rebuilt each time a recording is opened. The same `master.m3u8` also opens in VLC or mpv.
+
 ## Commands
 
 ```
@@ -27,29 +39,30 @@ Steam deletes older background recordings when new ones need the space. A record
 
 ## Choosing markers
 
-`markers.json` decides which badges become markers and how they look. Editing it only needs a rerun of `mark`, not a new scan.
-
-```json
-{
-  "name": "DOUBLE KILL",
-  "match": "DOUBLE KILL",
-  "source": "banner",
-  "icon": "steam_2",
-  "priority": 30,
-  "enabled": true
-}
-```
+Rules... on the recordings screen decides which badges become markers and how they look. Changing rules never needs a new scan. Every badge a rule picks becomes its own marker, placed where its first matching text appeared. A KILL that turns into a DOUBLE KILL with a HEADSHOT tag is one badge, so it is one marker.
 
 | Field | Meaning |
 |---|---|
-| `name` | Marker title in Steam. Several badges merged into one marker are joined with " + ". |
-| `match` | Text searched for in the badge, ignoring case and extra spaces. `KILL` also matches `KILL X2`. |
-| `source` | `banner` for the ribbon above the stack (DOUBLE KILL, PAYBACK), `tag` for the boxed text below the name (KILL, HEADSHOT, DAMAGE ASSIST), or `any`. |
-| `icon` | One of the icons below. |
-| `priority` | Higher wins. When badges merge into one marker, the highest priority picks the icon. Steam also uses it to decide which icons to show in crowded parts of the timeline. |
-| `enabled` | `false` keeps the rule in the file without using it. |
+| On | Unticked keeps the rule without using it. |
+| Name | Marker title in Steam. When several rules match texts on the same badge, their names are joined with " + ". |
+| Match text | Text searched for in the badge, ignoring case and extra spaces. `KILL` also matches `KILL X2`. |
+| Source | `banner` for the ribbon above the stack (DOUBLE KILL, PAYBACK), `tag` for the boxed text below the name (KILL, HEADSHOT, DAMAGE ASSIST), or `any`. |
+| Icon | One of Steam's icons, listed below. |
+| Priority | Higher wins. When several rules match one badge, the highest priority picks the icon. Steam also uses it to decide which icons to show in crowded parts of the timeline. |
 
-Badge texts seen so far include DOUBLE KILL, TRIPLE KILL, QUAD KILL, MARAUDER 5, PAYBACK and GUNSLINGER as banners, and KILL, KILL X2, HEADSHOT, DAMAGE ASSIST, EQUIPMENT DESTROYED, REVIVE, SQUAD REVIVE and SQUAD SUPPLY as tags. The scan log in `output/` lists every text it read.
+Below the rules is every badge text your scans have read, how often, and which rule picks it. Double-click a text, or select it and press Add as rule, to start a rule from it.
+
+## Scanning speed
+
+A scan splits the recording into parts, 3 by default, and scans them at the same time, each with its own ffmpeg. One ffmpeg uses only part of the GPU's video decoders. Raise or lower the count in Settings and watch the Video Decode graph in Task Manager. Recordings shorter than a minute per part get fewer parts. Each part starts a few seconds early and finishes the badge it is following past its end, so badges on the seams are found once and whole.
+
+ffmpeg and Tesseract always end with battle-marker. On Windows the app runs inside a job object that Windows closes when the app ends, even after a crash or when it is killed in Task Manager, and that ends every program it started.
+
+## Settings and storage
+
+Settings... holds the Steam recordings folder, the ffmpeg and Tesseract paths, GPU decoding, how many parts are scanned at once, how close an existing timeline entry skips a new marker, and how far markers are moved earlier.
+
+Settings, rules and scan results are kept in `battle-marker.db`, a SQLite file in the project folder. The first start imports `markers.json`, the scan logs in `output/` and `output/app_names.json` into it. Those files are not read after that and can be deleted. Detection constants that belong to the templates stay in `config.py`.
 
 ## Timeline entry format
 
