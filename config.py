@@ -49,11 +49,16 @@ SUPPORTED_APPS = {"2807960": "Battlefield 6"}
 
 # ---- detection, tied to the templates ---------------------------------------
 
-# Badge region in a 3840x2160 frame, as (left, top, right, bottom).
-# The badge stack is right-aligned near x 1500 and grows leftward,
-# so the box leaves a lot of room on the left and above the banner row.
 SOURCE_SIZE = (3840, 2160)
-ROI = (500, 1100, 1750, 1650)
+# Region of a 3840x2160 frame that gets analysed, as (left, top, right, bottom).
+# The badge stack is right-aligned near x 1500 and grows leftward, so the box
+# leaves a lot of room on the left and above the banner row. It reaches down
+# and right far enough for the heartbeat button of the downed screen and the
+# first class icons of the deploy screen. The GPU decodes the whole frame
+# either way, the size only changes how much is copied back.
+ROI = (500, 1100, 2016, 1880)
+# The region before the downed and deploy screens were added, kept for bench_crop.py.
+BADGE_ONLY_ROI = (500, 1100, 1750, 1650)
 
 # Frames analysed per second of video. Badges stay on screen about 2.5 s.
 SAMPLE_FPS = 5

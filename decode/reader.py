@@ -19,8 +19,8 @@ import numpy as np
 import child_processes
 from recording.session import Session
 
-# Decoded frames buffered ahead of the caller. One ROI frame is about 2 MB.
-QUEUE_FRAMES = 64
+# Decoded frames buffered ahead of the caller, per scan part. One ROI frame is about 3.5 MB.
+QUEUE_FRAMES = 32
 _DONE = object()
 
 CUVID_DECODERS = {"hev1": "hevc_cuvid", "hvc1": "hevc_cuvid", "avc1": "h264_cuvid", "av01": "av1_cuvid"}
