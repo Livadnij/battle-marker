@@ -32,6 +32,7 @@ Scans Steam background recordings of Battlefield 6 for in-game badges (DOUBLE KI
 - `ui/` is PySide6. A stacked window with the recordings list (`recordings_screen.py`) and the player screen (`recording_screen.py`), Rules and Settings dialogs, workers in QThreads (`workers.py`), and `player/` with the timeline bar, hover preview and icon drawing.
 - `child_processes.py` puts the app into a Windows job object at startup, so ffmpeg and Tesseract die with it even after a crash.
 - `bench_crop.py` times a scan with the old and the new crop without saving anything.
+- `tests/` is the pytest suite. `tests/frames/` holds real ROI crops with player names blacked out.
 
 ## Steam recordings
 
@@ -83,9 +84,22 @@ Scans Steam background recordings of Battlefield 6 for in-game badges (DOUBLE KI
 - For scan changes, compare against a single pass on the same stretch. For speed, use `bench_crop.py` or the timings a scan prints per part.
 - UI tests can run offscreen (`QT_QPA_PLATFORM=offscreen`) with a copy of the database.
 
+### Automated tests
+
+- `uv run pytest` runs the whole suite in about 8 seconds. It needs no recording and no ffmpeg. The OCR tests and one scan test need Tesseract and skip without it.
+- `tests/conftest.py` gives every test its own database, backup folder and output folder in a temp directory, so no test touches `battle-marker.db`.
+- `test_life_tracker.py`, `test_appearance_tracker.py` and `test_rules_highlights.py` cover the pure logic with scripted cues. `test_markers.py`, `test_recording.py`, `test_decode_and_parts.py` and `test_storage.py` cover Steam's files, marker writing, the ffmpeg command, part splitting and SQLite.
+- `test_frames.py` runs the detectors and OCR on the real ROI crops in `tests/frames/`. Checks use score bands from the measurements in `config.py`, never exact values. A new case needs a crop in that folder and an entry in the `FRAMES` dict.
+- `test_scan_pipeline.py` runs `scan_session` on a scripted frame stream with stub detectors, and checks that one pass and 2, 3 or 4 parts find exactly the same badges, downs and deaths, including ones on a seam. It also covers cancelling, errors and rescanning a stretch. One test runs the real detectors on the real crops.
+- Player names must be blacked out before a crop is committed. Only paint over areas that no detector region or OCR box reads, and check that every score and OCR result stays identical afterwards. Never commit an unredacted crop, because git history keeps it.
+- The `session.mpd` in `test_recording.py` is written by hand and is not a copy of a Steam file.
+- A test is only worth keeping if it can fail. Break one line of the code under test and check that a test notices.
+- A part that starts in the middle of a recording assumes the player was alive. A lone deploy screen inside a later part therefore counts as a death there, while a single pass takes it for the match start. A test pins this.
+
 ## Status on 2026-11-11
 
 - `main` is at `36e1c6d`. The branch `death-detection` adds the bigger crop, death detection, skull-less tag reading and the new badge table.
+- The branch `tests` is cut from `death-detection`. It adds the test suite and two small fixes. `LifeTracker` no longer forgets a badge seen right after the deploy screen ended, and `AppearanceTracker.settled_before` only waits for badges that started earlier.
 - Not yet checked on Anton's machine. Rescan `bg_2807960_20261108_215340` and expect deaths near video 1721 s and 1760 s and a revived down at video 1977.6 s. Kill the app in Task Manager mid-scan and check no `ffmpeg.exe` is left.
 - `output/_probe/` holds thumbnails from the death research and can be deleted once Anton agrees. `markers.json` and `output/bg_*.json` are only the old import source.
 - Anton keeps a project note and session history in his Obsidian vault "My Second Brain", under `Efforts/Projects/battle-marker/` and `AIOS/History/`.

@@ -76,6 +76,14 @@ Settings... holds the Steam recordings folder, the ffmpeg and Tesseract paths, G
 
 Settings, rules and scan results are kept in `battle-marker.db`, a SQLite file in the project folder. The first start imports `markers.json`, the scan logs in `output/` and `output/app_names.json` into it. Those files are not read after that and can be deleted. Detection constants that belong to the templates stay in `config.py`.
 
+## Tests
+
+```
+uv run pytest
+```
+
+The suite takes a few seconds and needs no recording and no ffmpeg. Every test works on its own temporary database, so your settings, rules and scans are never touched. The tests that read text from real screen crops, and one scan test, need Tesseract and are skipped without it. The crops live in `tests/frames/` and have player names blacked out.
+
 ## Timeline entry format
 
 Steam stores markers in `gamerecordings\timelines\timeline_<appid><date>_<time>.json`. Times are milliseconds stored as strings. battle-marker writes entries like this one.
