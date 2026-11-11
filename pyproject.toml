@@ -10,3 +10,13 @@ dependencies = [
     "pyside6>=6.8",
     "pytesseract>=0.3.13",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["slow: needs real ffmpeg or real recordings, skipped unless asked for"]

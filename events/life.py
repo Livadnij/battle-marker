@@ -75,9 +75,8 @@ class LifeTracker:
             if cues.deploy:
                 self._deploy_last = time
             elif time - self._deploy_last > self.gap_seconds:
-                # Spawned. Nothing shows this life is a real one until a badge or a down.
+                # Spawned. A badge seen since the deploy screen ended already counted above.
                 self._state = _ALIVE
-                self._alive_seen = badge_present
             return
 
         if deploy_confirmed:
@@ -87,6 +86,8 @@ class LifeTracker:
                 start = self._deploy_run[0]
                 self._emit(start, DEATH, start, start)
             self._state = _DEPLOY
+            # Nothing shows the next life is a real one until a badge or a down.
+            self._alive_seen = False
             self._deploy_last = time
             self._down_start = self._down_last = None
             return
