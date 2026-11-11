@@ -1,15 +1,17 @@
 """Second screen. Player with a badge timeline, scanning and the badge list for one recording."""
 
+import time as clock
+
 from PySide6.QtCore import QPoint, Qt, QThread, QTimer, QUrl, Signal
 from PySide6.QtGui import QBrush, QFont, QImage, QKeySequence, QPalette, QPixmap, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
-    QCheckBox, QGroupBox, QHBoxLayout, QLabel, QMessageBox, QProgressBar,
+    QAbstractItemView, QCheckBox, QGroupBox, QHBoxLayout, QLabel, QMessageBox, QProgressBar,
     QPushButton, QScrollBar, QSlider, QSplitter, QVBoxLayout, QWidget,
 )
 
-from service.badges import Badge, list_badges
+from service.badges import Badge, list_badges, next_badge_index
 from service.errors import ServiceError
 from service.mark import MarkPlan, plan_marks, write_marks
 from service.playlist import Playback, build_playback
@@ -21,6 +23,7 @@ from storage.settings import get_settings
 from ui.common import duration, item, table
 from ui.player.preview import PreviewCache, PreviewPopup, PreviewWorker
 from ui.player.icons import icon_pixmap
+from ui.player.playhead_line import PlayheadLineDelegate
 from ui.player.timeline import TimelineBadge, TimelineBar
 from ui.workers import ScanWorker, start_in_thread
 
@@ -30,6 +33,8 @@ SKIP_SECONDS = 5
 JUMP_LEAD_SECONDS = 2  # a badge click starts playback this long before the badge
 SEEK_DEBOUNCE_MS = 120  # dragging the timeline seeks at most this often
 SIDE_PANEL_WIDTH = 420
+FOLLOW_PAUSE_SECONDS = 8  # scrolling the badge list by hand stops it following playback for this long
+FOLLOW_BAND = (0.1, 0.8)  # the list scrolls once the playhead line leaves this share of its height
 
 
 class RecordingScreen(QWidget):
@@ -48,6 +53,9 @@ class RecordingScreen(QWidget):
         self.scan_worker: ScanWorker | None = None
         self._pending_seek: float | None = None
         self._reloaded_after_error = False
+        self._playhead = 0.0  # timeline seconds the badge list line was last placed for
+        self._badge_times: list[float] = []
+        self._follow_paused_until = 0.0
 
         self._build_player()
         self._build()
@@ -138,6 +146,14 @@ class RecordingScreen(QWidget):
 
         self.badge_table = table(BADGE_COLUMNS, stretch_column=1)
         self.badge_table.cellClicked.connect(self._on_badge_clicked)
+        self.playhead_line = PlayheadLineDelegate(self.badge_table)
+        self.badge_table.setItemDelegate(self.playhead_line)
+        # Only the user's own scrolling triggers this, the list scrolling itself does not.
+        self.badge_table.verticalScrollBar().actionTriggered.connect(self._on_manual_scroll)
+        self.follow_box = QCheckBox("Follow playback")
+        self.follow_box.setChecked(True)
+        self.follow_box.setToolTip("Keeps the line that shows where playback is in view.")
+        self.follow_box.toggled.connect(self._on_follow_toggled)
         self.badge_summary = QLabel("")
         self.badge_summary.setWordWrap(True)
         self.write_button = QPushButton("Write markers")
@@ -145,6 +161,7 @@ class RecordingScreen(QWidget):
         badge_group = QGroupBox("Badges")
         badge_layout = QVBoxLayout(badge_group)
         badge_layout.addWidget(self.badge_table, 1)
+        badge_layout.addWidget(self.follow_box)
         badge_layout.addWidget(self.badge_summary)
         badge_layout.addWidget(self.write_button)
 
@@ -220,6 +237,7 @@ class RecordingScreen(QWidget):
         self.close_recording()
         self.info = info
         self.write_pending = False
+        self._badge_times = []  # the new badges are loaded after the video, so nothing old may linger
         length = duration(info.length) if info.length else "video deleted"
         started = info.started.strftime("%Y-%m-%d %H:%M") if info.started else ""
         self.title.setText(f"<b>{info.game}</b>  ·  {started}  ·  {length}")
@@ -249,6 +267,7 @@ class RecordingScreen(QWidget):
             self.timeline.set_range(0, 1)
             self.timeline.set_position(0)
             self._update_time_label(0)
+            self._update_playhead(0.0, scroll=False)
             return
         self.media_status.setText("" if self.playback.has_audio else "This recording has no audio.")
         self.timeline.set_range(self.playback.starts_at, self.playback.starts_at + self.playback.length)
@@ -282,11 +301,13 @@ class RecordingScreen(QWidget):
         self.player.setPosition(int((clamped - start) * 1000))
         self.timeline.set_position(clamped, follow=True)
         self._update_time_label(clamped)
+        self._update_playhead(clamped, scroll=True, force=True)
 
     def _request_seek(self, timeline_seconds: float) -> None:
         # Dragging produces many positions. Only the latest one is applied.
         self._pending_seek = timeline_seconds
         self._update_time_label(timeline_seconds)
+        self._update_playhead(timeline_seconds, scroll=True, force=True)
         if not self.seek_timer.isActive():
             self.seek_timer.start(SEEK_DEBOUNCE_MS)
 
@@ -302,7 +323,44 @@ class RecordingScreen(QWidget):
         playing = self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
         self.timeline.set_position(seconds, follow=playing)
         self._update_time_label(seconds)
+        self._update_playhead(seconds, scroll=playing)
         self._reloaded_after_error = False
+
+    # ---- playhead line in the badge list --------------------------------
+
+    def _update_playhead(self, seconds: float, *, scroll: bool, force: bool = False) -> None:
+        """Moves the line in the badge list to the playback position.
+
+        The list follows only while scroll is set and the box is ticked. Scrolling
+        by hand pauses that for a few seconds, unless force is set, which a seek is.
+        """
+        self._playhead = seconds
+        has_line = self.playback is not None and bool(self._badge_times)
+        row = next_badge_index(self._badge_times, seconds) if has_line else -1
+        if self.playhead_line.set_line_row(row):
+            self.badge_table.viewport().update()
+        paused = clock.monotonic() < self._follow_paused_until and not force
+        if scroll and row >= 0 and self.follow_box.isChecked() and not paused:
+            self._keep_line_visible(row)
+
+    def _keep_line_visible(self, row: int) -> None:
+        table = self.badge_table
+        if table.verticalScrollBar().maximum() == 0:
+            return  # every row fits, nothing to scroll
+        target = min(row, table.rowCount() - 1)
+        top = table.rowViewportPosition(target)
+        height = table.viewport().height()
+        inside = height * FOLLOW_BAND[0] <= top and top + table.rowHeight(target) <= height * FOLLOW_BAND[1]
+        if not inside:
+            table.scrollTo(table.model().index(target, 0), QAbstractItemView.ScrollHint.PositionAtCenter)
+
+    def _on_manual_scroll(self, _action: int) -> None:
+        self._follow_paused_until = clock.monotonic() + FOLLOW_PAUSE_SECONDS
+
+    def _on_follow_toggled(self, on: bool) -> None:
+        self._follow_paused_until = 0.0
+        if on:
+            self._update_playhead(self._playhead, scroll=True, force=True)
 
     def _update_time_label(self, seconds: float) -> None:
         if self.playback is None:
@@ -356,6 +414,8 @@ class RecordingScreen(QWidget):
             TimelineBadge(b.time, b.selected, b.rule.icon if b.rule else "", b.title)
             for b in self.badges
         ])
+        self._badge_times = [b.time for b in self.badges]
+        self._update_playhead(self._playhead, scroll=False)
 
         if self.info is None or not self.info.scanned:
             self.badge_summary.setText("Scan the recording to find its badges.")
