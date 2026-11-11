@@ -246,7 +246,7 @@ def test_the_text_signature_is_stable_for_the_same_frame():
 
 
 def test_a_tag_row_that_gains_a_box_counts_as_changed():
-    # Measured mean differences: 35 and 18, against a threshold of 12.
+    # The measured mean differences are 35 and 18, against a threshold of 12.
     assert sig_changed("row332_spawned_on", "row332_two_boxes", tag_box(332))
     assert sig_changed("row274_equipment", "row332_two_boxes", tag_box(332))
 

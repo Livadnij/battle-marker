@@ -1,4 +1,4 @@
-"""Steam's files: session.mpd, recording folders paired with timelines, time text.
+"""Steam's files, meaning session.mpd, recording folders paired with timelines, and time text.
 
 The mpd below is written by hand to hold what mpd.py reads. It is not a copy
 of a real Steam file, so a Steam format change would not show up here.

@@ -141,7 +141,7 @@ def test_later_parts_decode_early_and_earlier_parts_decode_late(tmp_path):
     chunks = list(range(1, 301))
     first, middle, last = split_parts(make_session(tmp_path, chunks), chunks, 3)
     assert first.chunks[0] == 1
-    assert first.chunks[-1] == 100 + TAIL_CHUNKS  # chunks[0:140] ends at chunk 140
+    assert first.chunks[-1] == 100 + TAIL_CHUNKS  # the first 140 chunks end at chunk 140
     assert middle.chunks[0] == 101 - LEAD_CHUNKS
     assert middle.chunks[-1] == 200 + TAIL_CHUNKS
     assert last.chunks[0] == 201 - LEAD_CHUNKS

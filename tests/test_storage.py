@@ -1,4 +1,4 @@
-"""The SQLite storage: migrations, settings, rules, scans, game names and the old-file import."""
+"""The SQLite storage, covering migrations, settings, rules, scans, game names and the old-file import."""
 
 import json
 import sqlite3
