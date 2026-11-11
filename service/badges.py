@@ -51,3 +51,15 @@ def list_badges(session: Session) -> list[Badge] | None:
             in_timeline=any(abs(time - t) <= dedup for t in entry_times),
         ))
     return badges
+
+
+def next_badge_index(times: list[float], position: float) -> int:
+    """Index of the first badge that has not been reached at this timeline position.
+
+    The badge list follows the scan order, and a badge is placed where its first
+    matching text appeared, so neighbours can be a little out of time order.
+    Taking the first badge in list order that is still ahead keeps the playhead
+    from jumping around when that happens. A badge exactly at the position counts
+    as reached. The result is len(times) when every badge is behind.
+    """
+    return next((i for i, t in enumerate(times) if t > position), len(times))
