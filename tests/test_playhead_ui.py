@@ -134,8 +134,57 @@ def test_the_arrow_is_in_the_first_column_only(screen, app):
     top = screen.badge_table.rowViewportPosition(1)
     first = screen.badge_table.columnViewportPosition(0)
     second = screen.badge_table.columnViewportPosition(1)
-    assert pixel(screen, first + 2, top + 4).name() == PLAYED.name()  # inside the arrow
+    assert pixel(screen, first + 2, top + 4).name() == PLAYED.name()  # inside the arrow, below the line
     assert pixel(screen, second + 2, top + 4).name() != PLAYED.name()
+
+
+def arrow_extent(screen: RecordingScreen) -> tuple[int, int]:
+    """First and last pixel row that has the line colour in the first few pixels of the first column."""
+    image = screen.badge_table.viewport().grab().toImage()
+    left = screen.badge_table.columnViewportPosition(0)
+    rows = [y for y in range(image.height())
+            if any(image.pixelColor(left + dx, y).name() == PLAYED.name() for dx in range(0, 9))]
+    return min(rows), max(rows)
+
+
+def test_the_arrow_is_centered_on_the_line(screen, app):
+    show_badges(screen, [10.0, 20.0, 30.0])
+    screen._update_playhead(15.0, scroll=False)
+    app.processEvents()
+    top = screen.badge_table.rowViewportPosition(1)
+    first_y, last_y = arrow_extent(screen)
+    assert first_y < top < last_y  # it reaches above and below the line
+    assert abs((first_y + last_y) / 2 - (top + 0.5)) <= 1  # the line is the two pixel rows from top
+    assert last_y - first_y >= 8  # a whole arrow, not half of one
+
+
+def test_the_arrow_stays_whole_when_the_line_is_above_the_first_row(screen, app):
+    show_badges(screen, [10.0, 20.0, 30.0])
+    screen._update_playhead(5.0, scroll=False)
+    app.processEvents()
+    first_y, last_y = arrow_extent(screen)
+    assert first_y >= 0
+    assert last_y - first_y >= 8
+
+
+def test_the_arrow_stays_whole_below_the_last_row(screen, app):
+    show_badges(screen, [10.0, 20.0, 30.0])
+    screen._update_playhead(99.0, scroll=False)
+    app.processEvents()
+    first_y, last_y = arrow_extent(screen)
+    assert last_y - first_y >= 8
+
+
+def test_selecting_the_row_above_the_line_does_not_wipe_the_top_of_the_arrow(screen, app):
+    show_badges(screen, [10.0, 20.0, 30.0])
+    screen._update_playhead(15.0, scroll=False)
+    app.processEvents()
+    top = screen.badge_table.rowViewportPosition(1)
+    first = screen.badge_table.columnViewportPosition(0)
+    assert pixel(screen, first + 2, top - 2).name() == PLAYED.name()
+    screen.badge_table.selectRow(0)  # repaints that row alone
+    app.processEvents()
+    assert pixel(screen, first + 2, top - 2).name() == PLAYED.name()
 
 
 # ---- following --------------------------------------------------------------
