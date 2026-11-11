@@ -101,5 +101,5 @@ Scans Steam background recordings of Battlefield 6 for in-game badges (DOUBLE KI
 - `main` is at `36e1c6d`. The branch `death-detection` adds the bigger crop, death detection, skull-less tag reading and the new badge table.
 - The branch `tests` is cut from `death-detection`. It adds the test suite and two small fixes. `LifeTracker` no longer forgets a badge seen right after the deploy screen ended, and `AppearanceTracker.settled_before` only waits for badges that started earlier.
 - Not yet checked on Anton's machine. Rescan `bg_2807960_20261108_215340` and expect deaths near video 1721 s and 1760 s and a revived down at video 1977.6 s. Kill the app in Task Manager mid-scan and check no `ffmpeg.exe` is left.
-- `output/_probe/` holds thumbnails from the death research and can be deleted once Anton agrees. `markers.json` and `output/bg_*.json` are only the old import source.
+- `markers.json` and `output/bg_*.json` are only the old import source.
 - Anton keeps a project note and session history in his Obsidian vault "My Second Brain", under `Efforts/Projects/battle-marker/` and `AIOS/History/`.
