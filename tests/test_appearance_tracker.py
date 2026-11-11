@@ -269,10 +269,6 @@ def test_settled_before_is_false_while_an_older_appearance_is_open():
     assert not tracker.settled_before(5.0)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "The docstring says only badges that started before the time count, but any open "
-    "appearance does, so a part keeps reading until the next part's first badge closes."
-))
 def test_settled_before_ignores_an_appearance_that_started_after_the_time():
     tracker = make_tracker()
     feed(tracker, [None] * 5 + [cues()] * 3)

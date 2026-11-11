@@ -4,8 +4,6 @@ Frames come at 5 per second like a real scan. A scene is a list of
 (what is on screen, seconds) pairs, so each test reads like a recording.
 """
 
-import pytest
-
 from detect.life import LifeCues
 from events.life import DEATH, DOWNED, KIND, REVIVED, LifeTracker
 
@@ -128,10 +126,6 @@ def test_badge_after_spawning_makes_the_next_deploy_a_death():
     assert [label for label, _ in summary(tracker)] == [DEATH, DEATH]
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "A badge shown in the DOWNED_GAP_SECONDS after the deploy screen ended is forgotten, "
-    "because leaving the deploy state sets alive_seen from the current sample alone."
-))
 def test_badge_right_after_spawning_makes_the_next_deploy_a_death():
     tracker = make_tracker(alive_known=True)
     play(tracker, [(DEPLOY, 3), (BADGE, 2), (ALIVE, 4), (DEPLOY, 3), (ALIVE, 6)])

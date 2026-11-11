@@ -116,7 +116,9 @@ class AppearanceTracker:
 
     def settled_before(self, time: float) -> bool:
         """True when no badge that started before this time is still being followed."""
-        return self._current is None and (self._run_start is None or self._run_start >= time)
+        if self._current is not None and self._current.start < time:
+            return False
+        return self._run_start is None or self._run_start >= time
 
     def _tag_box_for(self, cues: Cues) -> Box:
         if not self.tag_rows or cues.tag_top is None:
